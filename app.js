@@ -30,6 +30,7 @@ try {
 const db = mongoClient.db("bookshop");
 const User = db.collection("users");
 const Sessoes = db.collection("sessions");
+const Pedidos = db.collection("pedidos")
 
 dotenv.config();
 const port = process.env.PORT || 5000;
@@ -91,6 +92,45 @@ app.post("/sign-in", async (req, res) => {
     console.log(error);
     res.sendStatus(500);
   }
+})
+
+app.post("/pedidos", async (req, res) => {
+    const { carrinho }= req.body
+    const { authorization } = req.headers
+    const token = authorization?.replace("Bearer ", "");
+  if (!token) {
+    return res.sendStatus(401);
+  }
+
+  const sessionExiste = await Sessoes.findOne({ token });
+    if (sessionExiste) {
+      await Pedidos.insertOne({
+        userId: sessionExiste.userId,
+        date: dayjs().format('DD/MM/YYYY'),
+        pedido: carrinho
+      })
+      res.sendStatus( 200 )
+    }else{
+      res.status(401).send("sua sessão expirou, faça login")
+    }
+  
+})
+
+app.get("/meus-pedidos",  async (req, res) => {
+  const { authorization } = req.headers
+    const token = authorization?.replace("Bearer ", "");
+  if (!token) {
+    return res.sendStatus(401);
+  }
+
+   const sessionExiste = await Sessoes.findOne({ token });
+    if (sessionExiste) {
+      const listaPedidos= await Pedidos.find( { userId: sessionExiste.userId } ).toArray();
+     return res.status(200).send(listaPedidos)
+    }else{
+      res.status(401).send("sua sessão expirou, faça login")
+    }
+  res.send(401)
 })
 
 app.listen(port, () => {
